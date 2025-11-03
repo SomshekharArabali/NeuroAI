@@ -66,7 +66,7 @@
   gap: 12px;
 }
 
-.quickActionBtn {
+.actionButton {
   padding: 12px 16px;
   background: var(--bg-chat-input);
   border: 1px solid var(--border-color);
@@ -79,7 +79,7 @@
   text-align: left;
 }
 
-.quickActionBtn:hover {
+.actionButton:hover {
   background: var(--button-hover-bg);
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(124, 58, 237, 0.1);
@@ -132,10 +132,9 @@
   border-radius: 20px;
   font-size: 15px;
   line-height: 1.6;
+  position: relative;
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
-  display: flex;
-  flex-direction: column;
 }
 
 .Message:hover {
@@ -159,7 +158,6 @@
 }
 
 .messageContent {
-  flex-grow: 1;
   position: relative;
 }
 
@@ -199,41 +197,72 @@
   color: var(--text-secondary);
 }
 
-/* Message action buttons attached to bot message bubble */
-.messageActions {
+/* Message Actions at Bottom - ChatGPT Style */
+.messageActionsBottom {
   display: flex;
-  gap: 6px;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
-.messageActions .actionButton {
-  width: 32px;
-  height: 32px;
-  border: none;
+.MessageContainer:hover .messageActionsBottom {
+  opacity: 1;
+}
+
+.actionBtn {
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--bg-chat-input);
+  color: var(--text-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  color: var(--text-secondary);
-  padding: 0;
+  font-size: 14px;
 }
 
-.messageActions .actionButton:hover {
+.actionBtn:hover {
+  background: var(--button-hover-bg);
+  color: var(--text-primary);
+  border-color: var(--accent-color);
+}
+
+.actionBtn:active {
+  transform: scale(0.95);
+}
+
+.actionBtn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.actionBtn.active {
   background: rgba(124, 58, 237, 0.1);
+  border-color: var(--accent-color);
   color: var(--accent-color);
-  transform: scale(1.05);
 }
 
-.messageActions .actionButton:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  transform: none;
+/* Dark mode for action buttons */
+[data-theme="dark"] .actionBtn {
+  background: rgba(30, 41, 59, 0.8);
+  color: #9ca3af;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .actionBtn:hover {
+  background: rgba(124, 58, 237, 0.2);
+  color: #e2e8f0;
+  border-color: rgba(124, 58, 237, 0.5);
+}
+
+[data-theme="dark"] .actionBtn.active {
+  background: rgba(124, 58, 237, 0.3);
+  border-color: rgba(124, 58, 237, 0.6);
+  color: #a78bfa;
 }
 
 .messageTime {
@@ -343,13 +372,12 @@
     margin-bottom: 24px;
   }
 
-  .messageActions {
-    gap: 4px;
+  .messageActionsBottom {
+    gap: 6px;
   }
-  
-  .messageActions .actionButton {
-    width: 30px;
-    height: 30px;
+
+  .actionBtn {
+    padding: 5px 6px;
   }
 }
 
@@ -375,26 +403,12 @@
   color: #e2e8f0;
 }
 
-[data-theme="dark"] .quickActionBtn {
+[data-theme="dark"] .actionButton {
   background: rgba(30, 41, 59, 0.8);
   color: #e2e8f0;
   border-color: rgba(124, 58, 237, 0.3);
 }
 
-[data-theme="dark"] .quickActionBtn:hover {
+[data-theme="dark"] .actionButton:hover {
   background: rgba(124, 58, 237, 0.2);
-}
-
-[data-theme="dark"] .messageActions {
-  border-top-color: rgba(255, 255, 255, 0.05);
-}
-
-[data-theme="dark"] .messageActions .actionButton {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-secondary);
-}
-
-[data-theme="dark"] .messageActions .actionButton:hover {
-  background: rgba(124, 58, 237, 0.2);
-  color: var(--accent-color);
 }

@@ -1,9 +1,8 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect, useMemo, useState } from "react";
 import Markdown from "react-markdown";
 import styles from "./Chat.module.css";
 import PropTypes from "prop-types";
-import { Copy, ThumbsUp, ThumbsDown, RotateCcw } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from "react-hot-toast";
 
 const UserAvatar = () => (
   <div className={styles.userAvatar}>
@@ -34,37 +33,53 @@ const TypingIndicator = () => (
   </div>
 );
 
-const MessageReactions = ({ assistantMessageContent, userMessageContentForRetry, onCopy, onGoodResponse, onBadResponse, onRetry }) => {
+const MessageActions = ({
+  messageId,
+  messageContent,
+  copyToClipboard,
+  onGoodResponse,
+  onBadResponse,
+  onRetry,
+  feedbackGiven,
+}) => {
   return (
-    <div className={styles.messageActions}>
+    <div className={styles.messageActionsBottom}>
       <button
-        className={styles.actionButton}
-        title="Copy message"
-        onClick={() => onCopy(assistantMessageContent)}
+        className={styles.actionBtn}
+        title="Copy"
+        onClick={() => copyToClipboard(messageContent)}
       >
-        <Copy size={16} />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
       </button>
       <button
-        className={styles.actionButton}
+        className={`${styles.actionBtn} ${feedbackGiven === "good" ? styles.active : ""}`}
         title="Good response"
-        onClick={() => onGoodResponse(assistantMessageContent)}
+        onClick={() => onGoodResponse(messageId)}
       >
-        <ThumbsUp size={16} />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"></path>
+        </svg>
       </button>
       <button
-        className={styles.actionButton}
+        className={`${styles.actionBtn} ${feedbackGiven === "bad" ? styles.active : ""}`}
         title="Bad response"
-        onClick={() => onBadResponse(assistantMessageContent)}
+        onClick={() => onBadResponse(messageId)}
       >
-        <ThumbsDown size={16} />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
+        </svg>
       </button>
       <button
-        className={styles.actionButton}
-        title="Retry response"
-        onClick={() => onRetry(userMessageContentForRetry)}
-        disabled={!userMessageContentForRetry}
+        className={styles.actionBtn}
+        title="Retry"
+        onClick={() => onRetry(messageId)}
       >
-        <RotateCcw size={16} />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+        </svg>
       </button>
     </div>
   );
@@ -78,6 +93,7 @@ const WELCOME_MESSAGES = [
   },
 ];
 
+// Quick action button configurations
 const QUICK_ACTIONS = [
   {
     id: 1,
@@ -101,8 +117,9 @@ const QUICK_ACTIONS = [
   }
 ];
 
-export function Chat({ messages, isTyping, isStreaming, setContent, onRetryLastMessage }) {
+export function Chat({ messages, isTyping, isStreaming, setContent, onRetryMessage }) {
   const messagesEndRef = useRef(null);
+  const [feedbackGiven, setFeedbackGiven] = useState({});
 
   const messagesGroups = useMemo(
     () =>
@@ -122,40 +139,60 @@ export function Chat({ messages, isTyping, isStreaming, setContent, onRetryLastM
     }
   }, [messages, isStreaming]);
 
-  const handleCopy = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success("Message copied to clipboard!");
-    } catch (err) {
-      console.error("Failed to copy text: ", err);
-      toast.error("Failed to copy message.");
+  const handleGoodResponse = (messageId) => {
+    setFeedbackGiven((prev) => ({
+      ...prev,
+      [messageId]: prev[messageId] === "good" ? null : "good",
+    }));
+    toast.success("Thanks for your feedback!", { duration: 2000 });
+  };
+
+  const handleBadResponse = (messageId) => {
+    setFeedbackGiven((prev) => ({
+      ...prev,
+      [messageId]: prev[messageId] === "bad" ? null : "bad",
+    }));
+    toast.error("Feedback noted. We'll try to improve!", { duration: 2000 });
+  };
+
+  const handleRetry = (messageId) => {
+    // Find the user message that prompted this response
+    // The bot message is at messageId, so we need to look backwards for the last user message
+    let userMessageIndex = -1;
+    for (let i = messageId - 1; i >= 0; i--) {
+      if (messages[i] && messages[i].role === "user") {
+        userMessageIndex = i;
+        break;
+      }
+    }
+    
+    if (userMessageIndex !== -1 && onRetryMessage) {
+      const userMessage = messages[userMessageIndex];
+      onRetryMessage(userMessage.content, messageId);
+      toast.success("Retrying message...", { duration: 2000 });
+    } else {
+      toast.error("No user message found to retry.", { duration: 2000 });
     }
   };
 
-  const handleGoodResponse = (content) => {
-    console.log(`Feedback: Good response for content: "${content.substring(0, 50)}..."`);
-    toast.success("Thanks for the positive feedback!");
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Copied to clipboard!", { duration: 2000 });
+    } catch (err) {
+      console.error("Failed to copy text: ", err);
+      toast.error("Failed to copy", { duration: 2000 });
+    }
   };
 
-  const handleBadResponse = (content) => {
-    console.log(`Feedback: Bad response for content: "${content.substring(0, 50)}..."`);
-    toast.error("Thanks for the feedback. We'll try to improve!");
-  };
-
+  // Handle quick action button clicks
   const handleQuickAction = (message) => {
     if (setContent) {
       setContent(message);
     }
   };
 
-  // Determine the last assistant message and the user message that preceded it
-  const lastAssistantMessage = messages.slice().reverse().find(msg => msg.role === 'assistant');
-  const lastAssistantMessageIndex = messages.indexOf(lastAssistantMessage);
-  const lastUserMessageContentForRetry = lastAssistantMessageIndex > 0 
-    ? messages[lastAssistantMessageIndex - 1]?.content 
-    : null;
-
-  const renderMessage = (message, index, isLastAssistant = false, prevUserMessage = null) => {
+  const renderMessage = (message, index) => {
     const { role, content, id } = message;
     const isUser = role === "user";
     const timestamp = new Date().toLocaleTimeString([], {
@@ -210,17 +247,19 @@ export function Chat({ messages, isTyping, isStreaming, setContent, onRetryLastM
                 {content}
               </Markdown>
             </div>
-            {!isUser && isLastAssistant && !isStreaming && !isTyping && (
-              <MessageReactions
-                assistantMessageContent={content}
-                userMessageContentForRetry={prevUserMessage}
-                onCopy={handleCopy}
-                onGoodResponse={handleGoodResponse}
-                onBadResponse={handleBadResponse}
-                onRetry={onRetryLastMessage}
-              />
-            )}
           </div>
+
+          {!isUser && typeof id === "number" && (
+            <MessageActions
+              messageId={id}
+              messageContent={content}
+              copyToClipboard={copyToClipboard}
+              onGoodResponse={handleGoodResponse}
+              onBadResponse={handleBadResponse}
+              onRetry={handleRetry}
+              feedbackGiven={feedbackGiven[id]}
+            />
+          )}
 
           <div className={styles.messageTime}>{timestamp}</div>
         </div>
@@ -239,7 +278,7 @@ export function Chat({ messages, isTyping, isStreaming, setContent, onRetryLastM
       {showWelcome && (
         <div className={styles.welcomeSection}>
           {WELCOME_MESSAGES.map((message, index) =>
-            renderMessage(message, index, false, null)
+            renderMessage(message, index)
           )}
 
           <div className={styles.quickActions}>
@@ -248,7 +287,7 @@ export function Chat({ messages, isTyping, isStreaming, setContent, onRetryLastM
               {QUICK_ACTIONS.map((action) => (
                 <button
                   key={action.id}
-                  className={styles.quickActionBtn}
+                  className={styles.actionButton}
                   onClick={() => handleQuickAction(action.message)}
                 >
                   {action.label}
@@ -259,14 +298,9 @@ export function Chat({ messages, isTyping, isStreaming, setContent, onRetryLastM
         </div>
       )}
 
-      {messagesGroups.map((groupMessages, groupIndex) => (
+      {messagesGroups.map((messages, groupIndex) => (
         <div key={groupIndex} className={styles.Group}>
-          {groupMessages.map((message, msgIndex) => {
-            const isLastAssistant = message.role === 'assistant' && 
-                                   message.id === lastAssistantMessage?.id;
-            const prevUserMessage = isLastAssistant ? lastUserMessageContentForRetry : null;
-            return renderMessage(message, msgIndex, isLastAssistant, prevUserMessage);
-          })}
+          {messages.map(renderMessage)}
         </div>
       ))}
 
@@ -297,18 +331,19 @@ Chat.propTypes = {
   isTyping: PropTypes.bool,
   isStreaming: PropTypes.bool,
   setContent: PropTypes.func.isRequired,
-  onRetryLastMessage: PropTypes.func,
+  onRetryMessage: PropTypes.func,
 };
 
 BotAvatar.propTypes = {
   isTyping: PropTypes.bool,
 };
 
-MessageReactions.propTypes = {
-  assistantMessageContent: PropTypes.string.isRequired,
-  userMessageContentForRetry: PropTypes.string,
-  onCopy: PropTypes.func.isRequired,
+MessageActions.propTypes = {
+  messageId: PropTypes.number.isRequired,
+  messageContent: PropTypes.string.isRequired,
+  copyToClipboard: PropTypes.func.isRequired,
   onGoodResponse: PropTypes.func.isRequired,
   onBadResponse: PropTypes.func.isRequired,
   onRetry: PropTypes.func.isRequired,
+  feedbackGiven: PropTypes.string,
 };

@@ -66,7 +66,7 @@
   gap: 12px;
 }
 
-.actionButton {
+.quickActionBtn {
   padding: 12px 16px;
   background: var(--bg-chat-input);
   border: 1px solid var(--border-color);
@@ -79,7 +79,7 @@
   text-align: left;
 }
 
-.actionButton:hover {
+.quickActionBtn:hover {
   background: var(--button-hover-bg);
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(124, 58, 237, 0.1);
@@ -132,9 +132,10 @@
   border-radius: 20px;
   font-size: 15px;
   line-height: 1.6;
-  position: relative;
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .Message:hover {
@@ -158,6 +159,7 @@
 }
 
 .messageContent {
+  flex-grow: 1;
   position: relative;
 }
 
@@ -197,79 +199,41 @@
   color: var(--text-secondary);
 }
 
+/* Message action buttons attached to bot message bubble */
 .messageActions {
-  position: absolute;
-  top: 8px;
-  right: 8px;
   display: flex;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  justify-content: flex-end;
 }
 
-.Message:hover .messageActions {
-  opacity: 1;
-}
-
-.reactionButton,
-.copyButton {
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  font-size: 12px;
-}
-
-.reactionButton:hover,
-.copyButton:hover {
-  background: rgba(0, 0, 0, 0.2);
-  transform: scale(1.1);
-}
-
-.reactionPanel {
-  position: absolute;
-  top: 36px;
-  right: 0;
-  background: white;
-  border-radius: 12px;
-  padding: 8px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  display: flex;
-  gap: 4px;
-  z-index: 10;
-}
-
-.reactionPanel button {
+.messageActions .actionButton {
   width: 32px;
   height: 32px;
   border: none;
   border-radius: 8px;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.5);
   cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: var(--text-secondary);
+  padding: 0;
 }
 
-.reactionPanel button:hover {
+.messageActions .actionButton:hover {
   background: rgba(124, 58, 237, 0.1);
-  transform: scale(1.2);
+  color: var(--accent-color);
+  transform: scale(1.05);
 }
 
-.reactionDisplay {
-  position: absolute;
-  bottom: -8px;
-  right: 16px;
-  background: white;
-  border-radius: 12px;
-  padding: 4px 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  font-size: 14px;
+.messageActions .actionButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .messageTime {
@@ -378,6 +342,15 @@
     gap: 16px;
     margin-bottom: 24px;
   }
+
+  .messageActions {
+    gap: 4px;
+  }
+  
+  .messageActions .actionButton {
+    width: 30px;
+    height: 30px;
+  }
 }
 
 /* Dark mode support */
@@ -402,22 +375,26 @@
   color: #e2e8f0;
 }
 
-[data-theme="dark"] .actionButton {
+[data-theme="dark"] .quickActionBtn {
   background: rgba(30, 41, 59, 0.8);
   color: #e2e8f0;
   border-color: rgba(124, 58, 237, 0.3);
 }
 
-[data-theme="dark"] .actionButton:hover {
+[data-theme="dark"] .quickActionBtn:hover {
   background: rgba(124, 58, 237, 0.2);
 }
 
-[data-theme="dark"] .reactionPanel {
-  background: #1e293b;
-  color: #e2e8f0;
+[data-theme="dark"] .messageActions {
+  border-top-color: rgba(255, 255, 255, 0.05);
 }
 
-[data-theme="dark"] .reactionDisplay {
-  background: #1e293b;
-  color: #e2e8f0;
+[data-theme="dark"] .messageActions .actionButton {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .messageActions .actionButton:hover {
+  background: rgba(124, 58, 237, 0.2);
+  color: var(--accent-color);
 }

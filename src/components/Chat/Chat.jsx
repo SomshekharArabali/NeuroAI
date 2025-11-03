@@ -1,7 +1,9 @@
-import { useRef, useEffect, useMemo, useState } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import Markdown from "react-markdown";
 import styles from "./Chat.module.css";
 import PropTypes from "prop-types";
+import { Copy, ThumbsUp, ThumbsDown, RotateCcw } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const UserAvatar = () => (
   <div className={styles.userAvatar}>
@@ -32,45 +34,38 @@ const TypingIndicator = () => (
   </div>
 );
 
-const MessageReactions = ({
-  onReaction,
-  messageId,
-  messages,
-  copyToClipboard,
-}) => {
-  const [showReactions, setShowReactions] = useState(false);
-  const reactions = ["👍", "❤️", "😊", "🤔", "👎"];
-
+const MessageReactions = ({ assistantMessageContent, userMessageContentForRetry, onCopy, onGoodResponse, onBadResponse, onRetry }) => {
   return (
     <div className={styles.messageActions}>
       <button
-        className={styles.reactionButton}
-        onClick={() => setShowReactions(!showReactions)}
+        className={styles.actionButton}
+        title="Copy message"
+        onClick={() => onCopy(assistantMessageContent)}
       >
-        😊
+        <Copy size={16} />
       </button>
       <button
-        className={styles.copyButton}
-        title="Copy message"
-        onClick={() => copyToClipboard(messages[messageId]?.content)}
+        className={styles.actionButton}
+        title="Good response"
+        onClick={() => onGoodResponse(assistantMessageContent)}
       >
-        📋
+        <ThumbsUp size={16} />
       </button>
-      {showReactions && (
-        <div className={styles.reactionPanel}>
-          {reactions.map((reaction) => (
-            <button
-              key={reaction}
-              onClick={() => {
-                onReaction(messageId, reaction);
-                setShowReactions(false);
-              }}
-            >
-              {reaction}
-            </button>
-          ))}
-        </div>
-      )}
+      <button
+        className={styles.actionButton}
+        title="Bad response"
+        onClick={() => onBadResponse(assistantMessageContent)}
+      >
+        <ThumbsDown size={16} />
+      </button>
+      <button
+        className={styles.actionButton}
+        title="Retry response"
+        onClick={() => onRetry(userMessageContentForRetry)}
+        disabled={!userMessageContentForRetry}
+      >
+        <RotateCcw size={16} />
+      </button>
     </div>
   );
 };
@@ -83,7 +78,6 @@ const WELCOME_MESSAGES = [
   },
 ];
 
-// Quick action button configurations
 const QUICK_ACTIONS = [
   {
     id: 1,
@@ -107,9 +101,8 @@ const QUICK_ACTIONS = [
   }
 ];
 
-export function Chat({ messages, isTyping, isStreaming, setContent }) {
+export function Chat({ messages, isTyping, isStreaming, setContent, onRetryLastMessage }) {
   const messagesEndRef = useRef(null);
-  const [messageReactions, setMessageReactions] = useState({});
 
   const messagesGroups = useMemo(
     () =>
@@ -129,30 +122,40 @@ export function Chat({ messages, isTyping, isStreaming, setContent }) {
     }
   }, [messages, isStreaming]);
 
-  const handleReaction = (messageId, reaction) => {
-    setMessageReactions((prev) => ({
-      ...prev,
-      [messageId]: reaction,
-    }));
-  };
-
-  const copyToClipboard = async (text) => {
+  const handleCopy = async (text) => {
     try {
       await navigator.clipboard.writeText(text);
-      // You could add a toast notification here
+      toast.success("Message copied to clipboard!");
     } catch (err) {
       console.error("Failed to copy text: ", err);
+      toast.error("Failed to copy message.");
     }
   };
 
-  // Handle quick action button clicks
+  const handleGoodResponse = (content) => {
+    console.log(`Feedback: Good response for content: "${content.substring(0, 50)}..."`);
+    toast.success("Thanks for the positive feedback!");
+  };
+
+  const handleBadResponse = (content) => {
+    console.log(`Feedback: Bad response for content: "${content.substring(0, 50)}..."`);
+    toast.error("Thanks for the feedback. We'll try to improve!");
+  };
+
   const handleQuickAction = (message) => {
     if (setContent) {
       setContent(message);
     }
   };
 
-  const renderMessage = (message, index) => {
+  // Determine the last assistant message and the user message that preceded it
+  const lastAssistantMessage = messages.slice().reverse().find(msg => msg.role === 'assistant');
+  const lastAssistantMessageIndex = messages.indexOf(lastAssistantMessage);
+  const lastUserMessageContentForRetry = lastAssistantMessageIndex > 0 
+    ? messages[lastAssistantMessageIndex - 1]?.content 
+    : null;
+
+  const renderMessage = (message, index, isLastAssistant = false, prevUserMessage = null) => {
     const { role, content, id } = message;
     const isUser = role === "user";
     const timestamp = new Date().toLocaleTimeString([], {
@@ -207,20 +210,15 @@ export function Chat({ messages, isTyping, isStreaming, setContent }) {
                 {content}
               </Markdown>
             </div>
-
-            {!isUser && typeof id === "number" && (
+            {!isUser && isLastAssistant && !isStreaming && !isTyping && (
               <MessageReactions
-                onReaction={handleReaction}
-                messageId={id}
-                messages={messages}
-                copyToClipboard={copyToClipboard}
+                assistantMessageContent={content}
+                userMessageContentForRetry={prevUserMessage}
+                onCopy={handleCopy}
+                onGoodResponse={handleGoodResponse}
+                onBadResponse={handleBadResponse}
+                onRetry={onRetryLastMessage}
               />
-            )}
-
-            {messageReactions[id] && (
-              <div className={styles.reactionDisplay}>
-                {messageReactions[id]}
-              </div>
             )}
           </div>
 
@@ -241,7 +239,7 @@ export function Chat({ messages, isTyping, isStreaming, setContent }) {
       {showWelcome && (
         <div className={styles.welcomeSection}>
           {WELCOME_MESSAGES.map((message, index) =>
-            renderMessage(message, index)
+            renderMessage(message, index, false, null)
           )}
 
           <div className={styles.quickActions}>
@@ -250,7 +248,7 @@ export function Chat({ messages, isTyping, isStreaming, setContent }) {
               {QUICK_ACTIONS.map((action) => (
                 <button
                   key={action.id}
-                  className={styles.actionButton}
+                  className={styles.quickActionBtn}
                   onClick={() => handleQuickAction(action.message)}
                 >
                   {action.label}
@@ -261,9 +259,14 @@ export function Chat({ messages, isTyping, isStreaming, setContent }) {
         </div>
       )}
 
-      {messagesGroups.map((messages, groupIndex) => (
+      {messagesGroups.map((groupMessages, groupIndex) => (
         <div key={groupIndex} className={styles.Group}>
-          {messages.map(renderMessage)}
+          {groupMessages.map((message, msgIndex) => {
+            const isLastAssistant = message.role === 'assistant' && 
+                                   message.id === lastAssistantMessage?.id;
+            const prevUserMessage = isLastAssistant ? lastUserMessageContentForRetry : null;
+            return renderMessage(message, msgIndex, isLastAssistant, prevUserMessage);
+          })}
         </div>
       ))}
 
@@ -293,7 +296,8 @@ Chat.propTypes = {
   ).isRequired,
   isTyping: PropTypes.bool,
   isStreaming: PropTypes.bool,
-  setContent: PropTypes.func.isRequired, // Added prop type for setContent
+  setContent: PropTypes.func.isRequired,
+  onRetryLastMessage: PropTypes.func,
 };
 
 BotAvatar.propTypes = {
@@ -301,8 +305,10 @@ BotAvatar.propTypes = {
 };
 
 MessageReactions.propTypes = {
-  onReaction: PropTypes.func.isRequired,
-  messageId: PropTypes.number.isRequired,
-  messages: PropTypes.array.isRequired,
-  copyToClipboard: PropTypes.func.isRequired,
+  assistantMessageContent: PropTypes.string.isRequired,
+  userMessageContentForRetry: PropTypes.string,
+  onCopy: PropTypes.func.isRequired,
+  onGoodResponse: PropTypes.func.isRequired,
+  onBadResponse: PropTypes.func.isRequired,
+  onRetry: PropTypes.func.isRequired,
 };

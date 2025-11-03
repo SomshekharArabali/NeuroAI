@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import PropTypes from "prop-types";
 import { Assistant } from "./assistants/googleai";
 import { Loader } from "./components/Loader/Loader";
 import { Chat } from "./components/Chat/Chat";
@@ -189,6 +190,13 @@ function App() {
     }
   }
 
+  // Function to retry the last message, passed to Chat component
+  const handleRetryLastMessage = (messageContent) => {
+    // Optionally, remove the last assistant message before retrying
+    setMessages(prevMessages => prevMessages.filter(msg => msg.role !== 'assistant'));
+    handleContentSend(messageContent);
+  };
+
   function handleStopGeneration() {
     if (abortController) {
       abortController.abort();
@@ -274,6 +282,7 @@ function App() {
               isTyping={isTyping}
               isStreaming={isStreaming}
               setContent={setContent}
+              onRetryLastMessage={handleRetryLastMessage} // Pass the new retry handler
             />
           </div>
           <Controls
@@ -289,5 +298,10 @@ function App() {
     </ThemeProvider>
   );
 }
+
+App.propTypes = {
+  // No direct props are passed to App, but its children receive many.
+  // If App were to receive props, they would be defined here.
+};
 
 export default App;
